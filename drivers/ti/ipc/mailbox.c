@@ -23,7 +23,15 @@
 /*
  * TI_MAILBOX_RX/TX_BASE and the MAILBOX_MAX_MESSAGE_SIZE values are expected
  * to come from platform specific header file ie. platform_def.h
+ * MAILBOX_*_START_REGION defines the start of the memory segment used to
+ * exchange messages with TIFS.  Each mailbox memory segment is divided into
+ * slots of 64 bytes with a total of five slots as described in the TISCI
+ * documentation.  The FIFO associated with a channel can hold at most four
+ * message pointers.
  */
+
+#define MAILBOX_SLOT_SIZE       U(64)
+#define MAILBOX_NUM_SLOTS       U(5)
 
 #define TI_MAILBOX_SYSC		UL(0x10)
 #define TI_MAILBOX_MSG		UL(0x40)
@@ -81,21 +89,18 @@ int ti_sci_transport_clear_rx_thread(enum ti_sci_transport_chan_id id)
 
 int ti_sci_transport_send(enum ti_sci_transport_chan_id id, const struct ti_sci_msg *msg)
 {
+	static unsigned int tx_slot;
 	uint32_t num_bytes;
-	void *dst_ptr = (void *)MAILBOX_TX_START_REGION;
+	void *dst_ptr;
 
 	assert(msg != NULL);
 
 	num_bytes = msg->len;
 
-	/*
-	 * Only a simple check because even if there's 1 pending message
-	 * we will be in a bad state if we try to send another message
-	 * due to the absence of any interrupt or buffer mgmt model.
-	 */
-	if (mmio_read_32(TI_MAILBOX_TX_BASE + TI_MAILBOX_FIFO_STATUS)) {
-		ERROR("Mailbox FIFO has pending messages!\n");
-		return -EINVAL;
+	/* Ensure there is room for another pointer in the FIFO */
+	if (mmio_read_32(TI_MAILBOX_TX_BASE + TI_MAILBOX_FIFO_STATUS) >= 4U) {
+		ERROR("Mailbox FIFO is full!\n");
+		return -EBUSY;
 	}
 
 	if (num_bytes > MAILBOX_MAX_MESSAGE_SIZE) {
@@ -103,12 +108,17 @@ int ti_sci_transport_send(enum ti_sci_transport_chan_id id, const struct ti_sci_
 		return -EINVAL;
 	}
 
-	/*
-	 * Move the buffer contents into the SRAM to be accessed by TIFS
-	 */
-	memmove(dst_ptr, msg->buf, num_bytes);
+	/* Select next slot within the TX memory region */
+	dst_ptr = (void *)(MAILBOX_TX_START_REGION +
+			   (tx_slot % MAILBOX_NUM_SLOTS) * MAILBOX_SLOT_SIZE);
+	tx_slot++;
 
-	mmio_write_32(TI_MAILBOX_TX_BASE + TI_MAILBOX_MSG, (uint64_t)(void *)dst_ptr);
+	/* Copy data to shared memory so that TIFS can read it */
+	memmove(dst_ptr, msg->buf, num_bytes);
+	flush_dcache_range((uintptr_t)dst_ptr, MAILBOX_SLOT_SIZE);
+
+	mmio_write_32(TI_MAILBOX_TX_BASE + TI_MAILBOX_MSG,
+		      (uint32_t)(uintptr_t)dst_ptr);
 
 	return 0;
 }
@@ -129,7 +139,10 @@ int ti_sci_transport_recv(enum ti_sci_transport_chan_id id, struct ti_sci_msg *m
 
 	rcv_addr = mmio_read_32(TI_MAILBOX_RX_BASE + TI_MAILBOX_MSG);
 
-	if (rcv_addr != MAILBOX_RX_START_REGION) {
+	if (rcv_addr < MAILBOX_RX_START_REGION ||
+	    rcv_addr >= MAILBOX_RX_START_REGION +
+			    MAILBOX_NUM_SLOTS * MAILBOX_SLOT_SIZE ||
+	    (rcv_addr - MAILBOX_RX_START_REGION) % MAILBOX_SLOT_SIZE) {
 		ERROR("message address %lu is not valid\n", rcv_addr);
 		return -EINVAL;
 	}
@@ -139,7 +152,8 @@ int ti_sci_transport_recv(enum ti_sci_transport_chan_id id, struct ti_sci_msg *m
 		return -EINVAL;
 	}
 
-	memmove(msg->buf, (uint8_t *)(rcv_addr), num_bytes);
+	inv_dcache_range(rcv_addr, MAILBOX_SLOT_SIZE);
+	memmove(msg->buf, (uint8_t *)rcv_addr, num_bytes);
 
 	return 0;
 }
