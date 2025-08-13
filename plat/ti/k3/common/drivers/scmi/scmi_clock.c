@@ -161,20 +161,33 @@ int32_t plat_scmi_clock_get_possible_parents(unsigned int agent_id,
 	*nb_elts = (uint64_t)scmi_handler_clock_get_num_clock_parents(clock->dev_id,
 									clock->clock_id);
 	if (plat_possible_parents) {
-		for (uint32_t i = 0; i < (uint32_t)*nb_elts ; i++) {
-			plat_possible_parents[i] = i;
+		/*
+		 * It doesn't make sense for a mux to have just 1 parent,
+		 * so check for atleast 2
+		 */
+		if(*nb_elts > 1) {
+			for (size_t i = 0; i < *nb_elts; i++) {
+				plat_possible_parents[i] = scmi_id - *nb_elts + i;
+				VERBOSE("DEBUG:: plat_possible_parents[x] = %d\n", plat_possible_parents[i]);
+			}
+		} else {
+			*nb_elts = 0;	// make it 0 for even a single parent
+			VERBOSE("DEBUG:: 0 possible parenst");
 		}
+	} else {
+		ERROR("%s: plat_possible_parents is NULL\n", __func__);
 	}
-	VERBOSE("num_parents %d\n", (uint32_t)*nb_elts);
+		VERBOSE("num_parents %d\n", (uint32_t)*nb_elts);
 	return SCMI_SUCCESS;
 }
 
 int32_t plat_scmi_clock_get_parent(unsigned int agent_id,
 				   unsigned int scmi_id)
 {
-	ti_scmi_clock_t *clock;
+	ti_scmi_clock_t *clock, *parent;
 	uint32_t parent_id = 0;
 	int32_t status = 0;
+	int32_t n_parents;
 
 	VERBOSE("scmi_clock_get_parent agent_id = %d, scmi_id = %d\n", agent_id, scmi_id);
 	clock = ti_scmi_get_clock(agent_id, scmi_id);
@@ -185,17 +198,31 @@ int32_t plat_scmi_clock_get_parent(unsigned int agent_id,
 	if (status)
 		return SCMI_GENERIC_ERROR;
 
-	parent_id = parent_id - clock->clock_id - 1;
+	n_parents = scmi_handler_clock_get_num_clock_parents(clock->dev_id, clock->clock_id);
+	if (n_parents > 1) {
+		/* Loop through the parents to identify the parent that matches the returned ID */
+		for(int i = 1; i <= n_parents; i++){
+			parent = ti_scmi_get_clock(agent_id, (scmi_id - i));
+			if(parent != NULL && parent->clock_id == parent_id){
+				VERBOSE("scmi_clock_get_parent parent_id = %d\n", scmi_id - i);
+				return scmi_id - i;
+			}
 
-	VERBOSE("scmi_clock_get_parent parent_id = %d\n", parent_id);
-	return parent_id;
+		}
+	} else {
+		ERROR("Only one parent!");
+		return SCMI_NOT_FOUND;
+	}
+
+	ERROR("EROR: faild to identify the clock parent");
+	return SCMI_NOT_FOUND;
 }
 
 int32_t plat_scmi_clock_set_parent(unsigned int agent_id,
 				   unsigned int scmi_id,
 				   unsigned int parent_id)
 {
-	ti_scmi_clock_t *clock;
+	ti_scmi_clock_t *clock, *parent;
 	int32_t status = 0;
 
 	VERBOSE("%s: agent_id = %d, scmi_id = %d parent_id = %d\n", __func__,
@@ -204,8 +231,8 @@ int32_t plat_scmi_clock_set_parent(unsigned int agent_id,
 	if (clock == 0)
 		return SCMI_NOT_FOUND;
 
-	parent_id = parent_id + clock->clock_id + 1;
-	status = scmi_handler_clock_set_clock_parent(clock->dev_id, clock->clock_id, parent_id);
+	parent = ti_scmi_get_clock(agent_id, parent_id);
+	status = scmi_handler_clock_set_clock_parent(clock->dev_id, clock->clock_id, parent->clock_id);
 	if (status)
 		return SCMI_GENERIC_ERROR;
 

@@ -31,16 +31,16 @@ const mmap_region_t plat_k3_mmap[] = {
  * unable to reparent. Force the clock parent from here till proper
  * fix is implemented in linux
  */
-static void ti_force_adc_parent(void)
-{
-	INFO("0_ADC0's parent is %d\n", plat_scmi_clock_get_parent(0, 0));
-	if (!plat_scmi_clock_set_parent(0, 0, 2)) {
-		INFO("0_ADC0's parent (after set_parent) is %d\n",
-		       plat_scmi_clock_get_parent(0, 0));
-	} else {
-		WARN("ADC set_parent failed!\n");
-	}
-}
+// static void ti_force_adc_parent(void)
+// {
+// 	INFO("0_ADC0's parent is %d\n", plat_scmi_clock_get_parent(0, 0));
+// 	if (!plat_scmi_clock_set_parent(0, 0, 2)) {
+// 		INFO("0_ADC0's parent (after set_parent) is %d\n",
+// 		       plat_scmi_clock_get_parent(0, 0));
+// 	} else {
+// 		WARN("ADC set_parent failed!\n");
+// 	}
+// }
 
 int ti_soc_init(void)
 {
@@ -68,7 +68,22 @@ int ti_soc_init(void)
 	     version.firmware_revision,
 	     version.firmware_description);
 
-	ti_force_adc_parent();
+
+	ret = ti_sci_proc_request(PLAT_PROC_START_ID);
+	if (ret) {
+		ERROR("Unable to request host (%d)\n", ret);
+		return ret;
+	}
+
+	/* Enable ACP based coherency */
+	ret = ti_sci_proc_set_boot_ctrl(PLAT_PROC_START_ID, 0,
+									PROC_BOOT_CTRL_FLAG_ARMV8_AINACTS);
+	if (ret) {
+		ERROR("Unable to set boot control (%d)\n", ret);
+		return ret;
+	}
+
+	// ti_force_adc_parent();
 
 	return 0;
 }

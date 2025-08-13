@@ -463,14 +463,16 @@ static int32_t clk_pll_16fft_bypass(struct clk *clock_ptr, bool bypass)
 			   data_pll);
 
 	ctrl = readl(pll->base + (uint32_t) PLL_16FFT_CTRL(pll->idx));
-	if (bypass) {
-		/* Enable bypass */
+	/* Enable bypass only if its not bypassed already */
+	if (bypass && ((ctrl & PLL_16FFT_CTRL_BYPASS_EN) == 0U)) {
 		ctrl |= PLL_16FFT_CTRL_BYPASS_EN;
-	} else {
-		/* Disable bypass */
+		ti_clk_writel(ctrl, pll->base + (uint32_t)PLL_16FFT_CTRL(pll->idx));
+	} else if ((ctrl & PLL_16FFT_CTRL_BYPASS_EN) == PLL_16FFT_CTRL_BYPASS_EN) {
+		/* Disable bypass only if its bypassed */
 		ctrl &= ~PLL_16FFT_CTRL_BYPASS_EN;
+		ti_clk_writel(ctrl, pll->base + (uint32_t)PLL_16FFT_CTRL(pll->idx));
 	}
-	ti_clk_writel(ctrl, pll->base + (uint32_t) PLL_16FFT_CTRL(pll->idx));
+
 	return SUCCESS;
 }
 
@@ -1254,15 +1256,6 @@ static int32_t clk_pll_16fft_init_internal(struct clk *clock_ptr)
 				data);
 	pll = container_of(data_pll, const struct clk_data_pll_16fft,
 			   data_pll);
-
-	/*
-	 * Unlock write access. Note this register does not readback the
-	 * written value.
-	 */
-	ti_clk_writel((uint32_t) PLL_16FFT_LOCKKEY0_VALUE,
-		      (uint32_t) pll->base + (uint32_t) PLL_16FFT_LOCKKEY0(pll->idx));
-	ti_clk_writel((uint32_t) PLL_16FFT_LOCKKEY1_VALUE,
-		      (uint32_t) pll->base + (uint32_t) PLL_16FFT_LOCKKEY1(pll->idx));
 
 	/*
 	 * In order to honor the CLK_DATA_FLAG_NO_HW_REINIT flag when set,
