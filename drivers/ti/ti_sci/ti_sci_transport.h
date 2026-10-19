@@ -11,6 +11,10 @@
 
 #include <stdint.h>
 
+#if K3_SEC_PROXY_HANDOFF
+int ti_sci_transport_configure(uint16_t tx_thread, uint16_t rx_thread);
+#endif
+
 /**
  * enum ti_sci_transport_chan_id - Secure Proxy thread IDs
  *

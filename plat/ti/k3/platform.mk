@@ -25,6 +25,13 @@ PLAT_INCLUDES += -Iplat/ti/k3/board/${TARGET_BOARD}/include	\
 # modify BUILD_PLAT to point to board specific build directory
 BUILD_PLAT := $(abspath ${BUILD_BASE})/${PLAT}/${TARGET_BOARD}/${BUILD_TYPE}
 
+ifeq (${K3_SEC_PROXY_HANDOFF},1)
+include lib/transfer_list/transfer_list.mk
+include lib/libfdt/libfdt.mk
+BL31_SOURCES += plat/ti/common/k3_handoff.c \
+		plat/ti/common/k3_handoff_parse.c
+endif
+
 K3_PSCI_SOURCES		+=	\
 				${PLAT_PATH}/common/k3_psci.c		\
 
