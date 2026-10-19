@@ -3,6 +3,11 @@
 This document contains a summary of the new features, changes, fixes and known
 issues in each release of Trusted Firmware-A.
 
+## Unreleased
+
+- Add opt-in K3 secure-proxy configuration from a host-generated transfer list,
+  using reusable bounded validation and platform-overridable discovery.
+
 ## [2.15.0](https://review.trustedfirmware.org/plugins/gitiles/TF-A/trusted-firmware-a/+/refs/tags/v2.14.0..refs/tags/v2.15.0) (2026-05-27)
 
 ### ⚠ BREAKING CHANGES

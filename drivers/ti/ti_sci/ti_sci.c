@@ -29,6 +29,15 @@ static uint8_t message_sequence;
 
 DEFINE_BAKERY_LOCK(ti_sci_xfer_lock);
 
+#if K3_SEC_PROXY_HANDOFF
+static uint8_t ti_sci_host_id;
+
+void ti_sci_set_host_id(uint8_t host_id)
+{
+	ti_sci_host_id = host_id;
+}
+#endif
+
 /**
  * struct ti_sci_xfer - Structure representing a message flow
  * @tx_message:	Transmit message
@@ -75,7 +84,11 @@ static int ti_sci_setup_one_xfer(uint16_t msg_type, uint32_t msg_flags,
 	hdr->sec_hdr.checksum = 0;
 	hdr->seq = ++message_sequence;
 	hdr->type = msg_type;
+#if K3_SEC_PROXY_HANDOFF
+	hdr->host = ti_sci_host_id;
+#else
 	hdr->host = TI_SCI_HOST_ID;
+#endif
 	hdr->flags = msg_flags;
 	/* Request a response if rx_message_size is non-zero */
 	if (rx_message_size != 0U) {

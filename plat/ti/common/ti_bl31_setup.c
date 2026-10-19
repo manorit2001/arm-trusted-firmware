@@ -20,6 +20,10 @@
 #include <plat_private.h>
 #include <platform_def.h>
 
+#if K3_SEC_PROXY_HANDOFF
+#include <k3_handoff.h>
+#endif
+
 /*
  * Placeholder variables for maintaining information about the next image(s)
  */
@@ -55,6 +59,10 @@ void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 	/* Initialize the console to provide early debug support */
 	k3_console_setup();
 
+#if K3_SEC_PROXY_HANDOFF
+	k3_handoff_init();
+#endif
+
 #ifdef BL32_BASE
 	/* Populate entry point information for BL32 */
 	SET_PARAM_HEAD(&bl32_image_ep_info, PARAM_EP, VERSION_1, 0);
@@ -81,6 +89,10 @@ void bl31_early_platform_setup2(u_register_t arg0, u_register_t arg1,
 	bl33_image_ep_info.args.arg1 = 0U;
 	bl33_image_ep_info.args.arg2 = 0U;
 	bl33_image_ep_info.args.arg3 = 0U;
+#endif
+
+#if K3_SEC_PROXY_HANDOFF && defined(SPD_opteed) && defined(BL32_BASE)
+	k3_handoff_prepare_optee(&bl32_image_ep_info);
 #endif
 }
 

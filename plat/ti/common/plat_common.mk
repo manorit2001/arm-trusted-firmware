@@ -47,6 +47,22 @@ $(eval $(call add_define,K3_USART_BAUD))
 # Libraries
 include lib/xlat_tables_v2/xlat_tables.mk
 
+K3_SEC_PROXY_HANDOFF ?= 0
+$(eval $(call assert_boolean,K3_SEC_PROXY_HANDOFF))
+$(eval $(call add_define,K3_SEC_PROXY_HANDOFF))
+ifeq (${K3_SEC_PROXY_HANDOFF},1)
+ifneq (${SEPARATE_NOBITS_REGION},0)
+$(error K3_SEC_PROXY_HANDOFF requires a contiguous BL31 runtime layout)
+endif
+ifneq (${SEPARATE_RWDATA_REGION},0)
+$(error K3_SEC_PROXY_HANDOFF does not support separate RW data)
+endif
+TRANSFER_LIST := 1
+PLAT_EXTRA_LD_SCRIPT := 1
+PLAT_TRANSFER_LIST_SIZE := 4096
+$(eval $(call add_define,PLAT_TRANSFER_LIST_SIZE))
+endif
+
 PLAT_INCLUDES		+=	\
 				-I${PLAT_PATH}/include			\
 				-Idrivers/ti/ti_sci			\

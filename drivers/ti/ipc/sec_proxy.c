@@ -102,6 +102,37 @@ static struct k3_sec_proxy_mbox spm = {
 	},
 };
 
+#if K3_SEC_PROXY_HANDOFF
+static void k3_sec_proxy_set_thread(struct k3_sec_proxy_thread *thread,
+				  uint16_t id)
+{
+	thread->data = SEC_PROXY_THREAD(SEC_PROXY_DATA_BASE, id);
+	thread->scfg = SEC_PROXY_THREAD(SEC_PROXY_SCFG_BASE, id);
+	thread->rt = SEC_PROXY_THREAD(SEC_PROXY_RT_BASE, id);
+}
+
+int ti_sci_transport_configure(uint16_t tx_thread, uint16_t rx_thread)
+{
+	/* Validate the MMIO windows before constructing any thread addresses. */
+	if (tx_thread == rx_thread ||
+	    tx_thread >= SEC_PROXY_DATA_SIZE / 0x1000U ||
+	    tx_thread >= SEC_PROXY_SCFG_SIZE / 0x1000U ||
+	    tx_thread >= SEC_PROXY_RT_SIZE / 0x1000U ||
+	    rx_thread >= SEC_PROXY_DATA_SIZE / 0x1000U ||
+	    rx_thread >= SEC_PROXY_SCFG_SIZE / 0x1000U ||
+	    rx_thread >= SEC_PROXY_RT_SIZE / 0x1000U) {
+		return -EINVAL;
+	}
+
+	/* Logical channel IDs stay stable; only their hardware mapping changes. */
+	k3_sec_proxy_set_thread(&spm.threads[TX_SECURE_TRANSPORT_CHANNEL_ID],
+				tx_thread);
+	k3_sec_proxy_set_thread(&spm.threads[RX_SECURE_TRANSPORT_CHANNEL_ID],
+				rx_thread);
+	return 0;
+}
+#endif
+
 /**
  * k3_sec_proxy_verify_thread() - Verify thread status before
  *				  sending/receiving data

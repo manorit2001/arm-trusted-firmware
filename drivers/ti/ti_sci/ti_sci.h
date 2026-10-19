@@ -14,6 +14,10 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#if K3_SEC_PROXY_HANDOFF
+void ti_sci_set_host_id(uint8_t host_id);
+#endif
+
 /**
  * User exported structures.
  *
