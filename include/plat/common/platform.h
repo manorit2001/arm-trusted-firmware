@@ -167,6 +167,8 @@ unsigned int plat_ic_get_interrupt_id(unsigned int raw);
 /*******************************************************************************
  * Optional common functions (may be overridden)
  ******************************************************************************/
+/* Discovery is platform-specific; the size must bound actually accessible RAM. */
+void *plat_get_transfer_list(size_t *available);
 uintptr_t plat_get_my_stack(void);
 void plat_report_exception(unsigned int exception_type);
 void plat_report_prefetch_abort(unsigned int fault_address);
