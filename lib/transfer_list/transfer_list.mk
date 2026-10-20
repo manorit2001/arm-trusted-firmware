@@ -20,7 +20,8 @@ LIBTL_SRCS	:=	$(addprefix $(LIBTL_SRC_PATH)/, \
 				generic/logging.c \
 				generic/transfer_list.c)
 
-LIBTL_SRCS += lib/transfer_list/transfer_list_validate.c
+LIBTL_SRCS += lib/transfer_list/firmware_handoff.c \
+	     lib/transfer_list/transfer_list_validate.c
 
 ifeq ($(MEASURED_BOOT), 1)
 LIBTL_SRCS	+=	$(LIBTL_SRC_PATH)/generic/tpm_event_log.c
